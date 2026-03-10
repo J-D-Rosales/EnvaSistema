@@ -39,6 +39,7 @@ fun ScanningLayout(
     infoIcon: ImageVector = Icons.Default.Radar,
     infoIconColor: Color? = null,
     isSaveButtonEnabled: ((Int) -> Boolean)? = null,
+    showScanningArea: Boolean = true,
     extraContent: @Composable (ColumnScope.() -> Unit)? = null
 ) {
     var scannCount by remember { mutableIntStateOf(0) }
@@ -65,111 +66,113 @@ fun ScanningLayout(
         ) {
             extraContent?.invoke(this)
 
-            if (extraContent != null) {
-                Spacer(modifier = Modifier.height(16.dp))
-            }
+            if (showScanningArea) {
+                if (extraContent != null) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
 
-            // Info Alert Card
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = infoCardBackground,
-                shape = RoundedCornerShape(12.dp)
-            ) {
+                // Info Alert Card
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = infoCardBackground,
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(modifier = Modifier.width(6.dp).height(60.dp).background(primaryColor))
+                        
+                        Icon(
+                            imageVector = infoIcon,
+                            contentDescription = null,
+                            tint = infoIconColor ?: primaryColor,
+                            modifier = Modifier.padding(horizontal = 12.dp).size(24.dp)
+                        )
+                        Text(
+                            text = infoText,
+                            color = if (primaryColor == Color(0xFFB71C1C) || primaryColor == Color(0xFF455A64)) Color(0xFF0061A6) else primaryColor,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(end = 16.dp, top = 8.dp, bottom = 8.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Scan Area
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .border(1.dp, Color(0xFFBDBDBD), RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { scannCount++ },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Surface(
+                            color = Color(0xFFEEEEEE),
+                            shape = CircleShape,
+                            modifier = Modifier.size(80.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.QrCodeScanner,
+                                contentDescription = null,
+                                tint = Color(0xFF9E9E9E),
+                                modifier = Modifier.padding(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Presione el botón lateral del terminal para escanear",
+                            color = Color(0xFF607D8B),
+                            fontSize = 14.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            text = "(Toque aquí para simular escaneo)",
+                            color = Color(0xFF9E9E9E),
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Scanned Codes Counter
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(modifier = Modifier.width(6.dp).height(60.dp).background(primaryColor))
-                    
-                    Icon(
-                        imageVector = infoIcon,
-                        contentDescription = null,
-                        tint = infoIconColor ?: primaryColor,
-                        modifier = Modifier.padding(horizontal = 12.dp).size(24.dp)
-                    )
-                    Text(
-                        text = infoText,
-                        color = if (primaryColor == Color(0xFFB71C1C) || primaryColor == Color(0xFF455A64)) Color(0xFF0061A6) else primaryColor,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(end = 16.dp, top = 8.dp, bottom = 8.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Scan Area
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .border(1.dp, Color(0xFFBDBDBD), RoundedCornerShape(16.dp))
-                    .clip(RoundedCornerShape(16.dp))
-                    .clickable { scannCount++ },
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Surface(
-                        color = Color(0xFFEEEEEE),
+                        color = primaryColor,
                         shape = CircleShape,
-                        modifier = Modifier.size(80.dp)
+                        modifier = Modifier.size(32.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.QrCodeScanner,
-                            contentDescription = null,
-                            tint = Color(0xFF9E9E9E),
-                            modifier = Modifier.padding(20.dp)
-                        )
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(text = scannCount.toString(), color = Color.White, fontWeight = FontWeight.Bold)
+                        }
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "Presione el botón lateral del terminal para escanear",
-                        color = Color(0xFF607D8B),
-                        fontSize = 14.sp,
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        text = "(Toque aquí para simular escaneo)",
-                        color = Color(0xFF9E9E9E),
-                        fontSize = 11.sp
+                        text = counterLabel,
+                        color = Color(0xFF455A64),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Scanned Codes Counter
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
-                    color = primaryColor,
-                    shape = CircleShape,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(text = scannCount.toString(), color = Color.White, fontWeight = FontWeight.Bold)
-                    }
+                Spacer(modifier = Modifier.height(32.dp))
+                
+                if (scannCount == 0) {
+                    Text(
+                        text = "No hay códigos escaneados",
+                        color = Color(0xFFBDBDBD),
+                        fontSize = 15.sp
+                    )
                 }
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = counterLabel,
-                    color = Color(0xFF455A64),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-            
-            if (scannCount == 0) {
-                Text(
-                    text = "No hay códigos escaneados",
-                    color = Color(0xFFBDBDBD),
-                    fontSize = 15.sp
-                )
             }
 
             Spacer(modifier = Modifier.weight(1f))

@@ -1,13 +1,10 @@
 package com.example.envasistema.ui.screens.movimientos
 
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.SyncAlt
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,27 +20,20 @@ import com.example.envasistema.ui.components.ScanningLayout
 fun TransferenciaInventarioScreen(
     onBackClick: () -> Unit
 ) {
-    var origen by remember { mutableStateOf("") }
-    var destino by remember { mutableStateOf("") }
-    
-    val locations = listOf("CUAVES", "MUEBLE", "JOSE GALVEZ", "ENVA")
-    
-    var showOrigenMenu by remember { mutableStateOf(false) }
-    var showDestinoMenu by remember { mutableStateOf(false) }
+    // We assume the app knows the current location, default to "ENVA"
+    val currentLocation by remember { mutableStateOf("ENVA") }
 
     ScanningLayout(
         title = "Transferencia de Inventario",
         subtitle = "MOVIMIENTOS INTERNOS",
-        infoText = "Escanee los códigos QR de las piezas o mangas a transferir",
+        infoText = "RECEPCIÓN — Escaneo de Productos\nEscanee los códigos QR de los productos. La transferencia se completa cuando otro terminal escanea el mismo producto.",
         onBackClick = onBackClick,
         onSaveClick = { /* TODO */ },
-        counterLabel = "Ítems a transferir",
+        counterLabel = "Productos escaneados",
         saveButtonText = "Confirmar Transferencia",
-        saveButtonIcon = Icons.Default.SyncAlt,
-        isSaveButtonEnabled = { count ->
-            count > 0 && origen.isNotEmpty() && destino.isNotEmpty() && origen != destino
-        },
+        saveButtonIcon = Icons.Default.Inventory2,
         extraContent = {
+            // My Current Location Card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -53,142 +43,45 @@ fun TransferenciaInventarioScreen(
                 shape = RoundedCornerShape(16.dp),
                 border = Box(Modifier.border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(16.dp))).let { null }
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        text = "UBICACIONES",
-                        color = Color(0xFF9E9E9E),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp
-                    )
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Origen Column
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.LocationOn,
-                                    contentDescription = null,
-                                    tint = Color(0xFF4CAF50),
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(text = "Origen", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF455A64))
-                                Text(text = " *", color = Color.Red)
-                            }
-                            
-                            Box {
-                                OutlinedCard(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 8.dp)
-                                        .clickable { showOrigenMenu = true },
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = CardDefaults.outlinedCardColors(containerColor = Color.Transparent),
-                                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(Color(0xFFE0E0E0)))
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(12.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = if (origen.isEmpty()) "— Origen —" else origen,
-                                            color = if (origen.isEmpty()) Color(0xFFBDBDBD) else Color.Black,
-                                            fontSize = 14.sp,
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        Icon(Icons.Default.ArrowDropDown, null, tint = Color(0xFF757575))
-                                    }
-                                }
-                                
-                                DropdownMenu(
-                                    expanded = showOrigenMenu,
-                                    onDismissRequest = { showOrigenMenu = false }
-                                ) {
-                                    locations.forEach { location ->
-                                        DropdownMenuItem(
-                                            text = { Text(location) },
-                                            onClick = {
-                                                origen = location
-                                                showOrigenMenu = false
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        
-                        // Transfer Icon
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = Icons.Default.SyncAlt,
+                            imageVector = Icons.Default.LocationOn,
                             contentDescription = null,
-                            tint = Color(0xFFBDBDBD),
-                            modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 24.dp).size(20.dp)
+                            tint = Color(0xFF0061A6),
+                            modifier = Modifier.size(18.dp)
                         )
-                        
-                        // Destino Column
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.LocationOn,
-                                    contentDescription = null,
-                                    tint = Color(0xFF0061A6),
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(text = "Destino", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF455A64))
-                                Text(text = " *", color = Color.Red)
-                            }
-                            
-                            Box {
-                                OutlinedCard(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 8.dp)
-                                        .clickable { showDestinoMenu = true },
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = CardDefaults.outlinedCardColors(containerColor = Color.Transparent),
-                                    border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(Color(0xFFE0E0E0)))
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(12.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = if (destino.isEmpty()) "— Destino —" else destino,
-                                            color = if (destino.isEmpty()) Color(0xFFBDBDBD) else Color.Black,
-                                            fontSize = 14.sp,
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        Icon(Icons.Default.ArrowDropDown, null, tint = Color(0xFF757575))
-                                    }
-                                }
-                                
-                                DropdownMenu(
-                                    expanded = showDestinoMenu,
-                                    onDismissRequest = { showDestinoMenu = false }
-                                ) {
-                                    locations.forEach { location ->
-                                        DropdownMenuItem(
-                                            text = { Text(location) },
-                                            onClick = {
-                                                destino = location
-                                                showDestinoMenu = false
-                                            }
-                                        )
-                                    }
-                                }
-                            }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Mi Ubicación Actual",
+                            color = Color(0xFF455A64),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Static Location Display Box
+                    OutlinedCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.outlinedCardColors(containerColor = Color.Transparent),
+                        border = CardDefaults.outlinedCardBorder().copy(
+                            brush = androidx.compose.ui.graphics.SolidColor(Color(0xFF0061A6)),
+                            width = 2.dp
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = currentLocation,
+                                color = Color(0xFF0D47A1),
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }
