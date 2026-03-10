@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.QrCodeScanner
@@ -16,10 +18,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,7 +36,7 @@ fun ScanningLayout(
     subtitle: String,
     infoText: String,
     onBackClick: () -> Unit,
-    onSaveClick: (Int) -> Unit,
+    onSaveClick: (List<String>) -> Unit,
     counterLabel: String = "Códigos escaneados",
     saveButtonText: String = "Guardar Ingreso",
     saveButtonIcon: ImageVector = Icons.Default.Save,
@@ -42,14 +48,59 @@ fun ScanningLayout(
     showScanningArea: Boolean = true,
     extraContent: @Composable (ColumnScope.() -> Unit)? = null
 ) {
-    var scannCount by remember { mutableIntStateOf(0) }
+    var scannedCodes by remember { mutableStateOf(emptyList<String>()) }
+    var currentInput by remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+
+    val scannCount = scannedCodes.size
     val buttonEnabled = isSaveButtonEnabled?.invoke(scannCount) ?: (scannCount > 0)
+
+    // Ensure focus is requested when the screen is visible
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF8F9FA))
+            // Re-request focus when background is clicked to ensure scanner always works
+            .clickable { focusRequester.requestFocus() }
     ) {
+        // Hidden TextField to capture hardware scanner input
+        TextField(
+            value = currentInput,
+            onValueChange = { newValue ->
+                // Usamos "contains" en vez de "endsWith" por si el usuario escribe muy rápido
+                if (newValue.contains("\n")) {
+                    val code = newValue.replace("\n", "").trim()
+                    if (code.isNotEmpty() && !scannedCodes.contains(code)) {
+                        scannedCodes = scannedCodes + code
+                    }
+                    currentInput = ""
+                } else {
+                    currentInput = newValue
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth() // Es mejor que 1.dp para asegurar que Compose no le quite el foco
+                .height(1.dp)
+                .alpha(0f)
+                .focusRequester(focusRequester),
+
+            // Atrapamos la tecla "Enter" del emulador/computadora
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(
+                onDone = {
+                    val code = currentInput.trim()
+                    if (code.isNotEmpty() && !scannedCodes.contains(code)) {
+                        scannedCodes = scannedCodes + code
+                    }
+                    currentInput = "" // Limpiamos para el siguiente
+                }
+            )
+        )
+
         SecondaryHeader(
             title = title,
             subtitle = subtitle,
@@ -108,7 +159,14 @@ fun ScanningLayout(
                         .height(200.dp)
                         .border(1.dp, Color(0xFFBDBDBD), RoundedCornerShape(16.dp))
                         .clip(RoundedCornerShape(16.dp))
-                        .clickable { scannCount++ },
+                        .clickable { 
+                            // Simulate scan for debugging/testing
+                            val mockCode = "MOCK-${(100..999).random()}"
+                            if (!scannedCodes.contains(mockCode)) {
+                                scannedCodes = scannedCodes + mockCode
+                            }
+                            focusRequester.requestFocus() 
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -152,7 +210,7 @@ fun ScanningLayout(
                         modifier = Modifier.size(32.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Text(text = scannCount.toString(), color = Color.White, fontWeight = FontWeight.Bold)
+                            Text(text = scannedCodes.size.toString(), color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     }
                     Spacer(modifier = Modifier.width(12.dp))
@@ -166,7 +224,7 @@ fun ScanningLayout(
 
                 Spacer(modifier = Modifier.height(32.dp))
                 
-                if (scannCount == 0) {
+                if (scannedCodes.isEmpty()) {
                     Text(
                         text = "No hay códigos escaneados",
                         color = Color(0xFFBDBDBD),
@@ -180,7 +238,7 @@ fun ScanningLayout(
 
             // Footer Button
             Button(
-                onClick = { if (buttonEnabled) onSaveClick(scannCount) },
+                onClick = { if (buttonEnabled) onSaveClick(scannedCodes) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
