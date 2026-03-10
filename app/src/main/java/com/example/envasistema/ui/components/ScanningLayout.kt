@@ -24,11 +24,13 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 
 @Composable
 fun ScanningLayout(
@@ -51,6 +53,8 @@ fun ScanningLayout(
     var scannedCodes by remember { mutableStateOf(emptyList<String>()) }
     var currentInput by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
+    val context = LocalContext.current
+    val scanner = remember { GmsBarcodeScanning.getClient(context) }
 
     val scannCount = scannedCodes.size
     val buttonEnabled = isSaveButtonEnabled?.invoke(scannCount) ?: (scannCount > 0)
@@ -71,7 +75,6 @@ fun ScanningLayout(
         TextField(
             value = currentInput,
             onValueChange = { newValue ->
-                // Usamos "contains" en vez de "endsWith" por si el usuario escribe muy rápido
                 if (newValue.contains("\n")) {
                     val code = newValue.replace("\n", "").trim()
                     if (code.isNotEmpty() && !scannedCodes.contains(code)) {
@@ -83,12 +86,10 @@ fun ScanningLayout(
                 }
             },
             modifier = Modifier
-                .fillMaxWidth() // Es mejor que 1.dp para asegurar que Compose no le quite el foco
+                .fillMaxWidth()
                 .height(1.dp)
                 .alpha(0f)
                 .focusRequester(focusRequester),
-
-            // Atrapamos la tecla "Enter" del emulador/computadora
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(
                 onDone = {
@@ -96,7 +97,8 @@ fun ScanningLayout(
                     if (code.isNotEmpty() && !scannedCodes.contains(code)) {
                         scannedCodes = scannedCodes + code
                     }
-                    currentInput = "" // Limpiamos para el siguiente
+                    currentInput = ""
+                    focusRequester.requestFocus()
                 }
             )
         )
@@ -160,12 +162,20 @@ fun ScanningLayout(
                         .border(1.dp, Color(0xFFBDBDBD), RoundedCornerShape(16.dp))
                         .clip(RoundedCornerShape(16.dp))
                         .clickable { 
-                            // Simulate scan for debugging/testing
-                            val mockCode = "MOCK-${(100..999).random()}"
-                            if (!scannedCodes.contains(mockCode)) {
-                                scannedCodes = scannedCodes + mockCode
-                            }
-                            focusRequester.requestFocus() 
+                            scanner.startScan()
+                                .addOnSuccessListener { barcode ->
+                                    val code = barcode.rawValue
+                                    if (!code.isNullOrEmpty() && !scannedCodes.contains(code)) {
+                                        scannedCodes = scannedCodes + code
+                                    }
+                                    focusRequester.requestFocus()
+                                }
+                                .addOnCanceledListener {
+                                    focusRequester.requestFocus()
+                                }
+                                .addOnFailureListener {
+                                    focusRequester.requestFocus()
+                                }
                         },
                     contentAlignment = Alignment.Center
                 ) {
@@ -190,7 +200,7 @@ fun ScanningLayout(
                             textAlign = TextAlign.Center
                         )
                         Text(
-                            text = "(Toque aquí para simular escaneo)",
+                            text = "(Toque aquí para escanear con la cámara)",
                             color = Color(0xFF9E9E9E),
                             fontSize = 11.sp
                         )
