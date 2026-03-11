@@ -64,7 +64,7 @@ fun SalidasScreen(
                 title = "Venta de PT",
                 subtitle = "Salida de producto terminado por venta",
                 icon = Icons.Default.ShoppingCart,
-                onClick = onVentaPTClick
+                onClick = {}/*onVentaPTClick*/
             )
             
             Spacer(modifier = Modifier.height(16.dp))

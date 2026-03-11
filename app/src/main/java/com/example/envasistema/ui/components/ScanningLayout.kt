@@ -25,6 +25,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -54,7 +55,13 @@ fun ScanningLayout(
     var currentInput by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
     val context = LocalContext.current
-    val scanner = remember { GmsBarcodeScanning.getClient(context) }
+    
+    // ML Kit components often fail to initialize in the Compose Preview environment (LocalInspectionMode).
+    // We avoid initializing the scanner when in preview to prevent IllegalStateException.
+    val isPreview = LocalInspectionMode.current
+    val scanner = remember { 
+        if (isPreview) null else GmsBarcodeScanning.getClient(context) 
+    }
 
     val scannCount = scannedCodes.size
     val buttonEnabled = isSaveButtonEnabled?.invoke(scannCount) ?: (scannCount > 0)
@@ -162,18 +169,18 @@ fun ScanningLayout(
                         .border(1.dp, Color(0xFFBDBDBD), RoundedCornerShape(16.dp))
                         .clip(RoundedCornerShape(16.dp))
                         .clickable { 
-                            scanner.startScan()
-                                .addOnSuccessListener { barcode ->
+                            scanner?.startScan()
+                                ?.addOnSuccessListener { barcode ->
                                     val code = barcode.rawValue
                                     if (!code.isNullOrEmpty() && !scannedCodes.contains(code)) {
                                         scannedCodes = scannedCodes + code
                                     }
                                     focusRequester.requestFocus()
                                 }
-                                .addOnCanceledListener {
+                                ?.addOnCanceledListener {
                                     focusRequester.requestFocus()
                                 }
-                                .addOnFailureListener {
+                                ?.addOnFailureListener {
                                     focusRequester.requestFocus()
                                 }
                         },

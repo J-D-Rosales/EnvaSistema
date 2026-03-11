@@ -70,7 +70,7 @@ fun IngresosScreen(
                 title = "Ingreso de Armado",
                 subtitle = "Ingreso de piezas y mangas ya armadas",
                 icon = Icons.Default.Sync,
-                onClick = onIngresoArmadoClick
+                onClick = {}/*onIngresoArmadoClick*/
             )
             
             Spacer(modifier = Modifier.height(16.dp))
@@ -88,7 +88,7 @@ fun IngresosScreen(
                 title = "Devolución de Mercadería",
                 subtitle = "Requiere N° de factura y datos del cliente",
                 icon = Icons.Default.SouthWest,
-                onClick = onDevolucionMercaderiaClick
+                onClick = {}/*onDevolucionMercaderiaClick*/
             )
             
             Spacer(modifier = Modifier.height(24.dp))
