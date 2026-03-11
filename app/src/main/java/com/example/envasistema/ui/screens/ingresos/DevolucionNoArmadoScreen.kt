@@ -6,6 +6,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.example.envasistema.ui.components.ScanningLayout
 import com.example.envasistema.util.OperationPayload
 import com.example.envasistema.util.getCurrentTimestampIso
+import com.example.envasistema.util.parseCsvToJson
 import org.json.JSONObject
 
 @Composable
@@ -21,7 +22,7 @@ fun DevolucionNoArmadoScreen(onBackClick: () -> Unit) {
 
             scannedCodes.forEach { rawScan ->
                 try {
-                    val qrJson = JSONObject(rawScan)
+                    val qrJson = parseCsvToJson(rawScan)
                     val mangaId = qrJson.optString("manga-id", rawScan)
                     
                     val metadatosJson = JSONObject().apply {
@@ -42,7 +43,7 @@ fun DevolucionNoArmadoScreen(onBackClick: () -> Unit) {
                     )
                     payloadsToSave.add(payload)
                 } catch (e: Exception) {
-                    Log.e("PayloadBuilder", "Failed to parse QR JSON: $rawScan")
+                    Log.e("PayloadBuilder", "Failed to parse QR CSV: $rawScan")
                 }
             }
             payloadsToSave.forEach { Log.d("OperationPayload", it.toString()) }

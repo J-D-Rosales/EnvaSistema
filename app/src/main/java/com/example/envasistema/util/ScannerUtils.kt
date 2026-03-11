@@ -16,9 +16,30 @@ data class OperationPayload(
     val isSynced: Boolean = false
 )
 
+fun parseCsvToJson(rawScan: String): JSONObject {
+    val values = rawScan.split(",")
+    return JSONObject().apply {
+        put("manga-id", values.getOrElse(0) { "" })
+        put("molde", values.getOrElse(1) { "" })
+        put("maquina", values.getOrElse(2) { "" })
+        put("n_op", values.getOrElse(3) { "" })
+        put("turno", values.getOrElse(4) { "" })
+        put("fecha_de_ot", values.getOrElse(5) { "" })
+        put("n_ot_correlativo", values.getOrElse(6) { "0" }.toIntOrNull() ?: 0)
+        put("operador", values.getOrElse(7) { "" })
+        put("color", values.getOrElse(8) { "" })
+        put("fecha_hora_pesaje", values.getOrElse(9) { "" })
+        put("peso_final_kg", values.getOrElse(10) { "0.0" }.toDoubleOrNull() ?: 0.0)
+    }
+}
+
 fun extractMangaIdFromScan(rawScannedString: String): String {
     return try {
-        JSONObject(rawScannedString).getString("manga-id")
+        if (rawScannedString.contains(",")) {
+            rawScannedString.split(",").getOrElse(0) { rawScannedString }
+        } else {
+            JSONObject(rawScannedString).getString("manga-id")
+        }
     } catch (e: Exception) {
         rawScannedString 
     }
