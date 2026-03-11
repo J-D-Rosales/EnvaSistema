@@ -4,30 +4,48 @@ import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.envasistema.ui.components.ScanningLayout
+import com.example.envasistema.util.OperationPayload
+import com.example.envasistema.util.getCurrentTimestampIso
+import org.json.JSONObject
 
 @Composable
-fun ProduccionNuevaScreen(
-    onBackClick: () -> Unit
-) {
+fun ProduccionNuevaScreen(onBackClick: () -> Unit) {
     ScanningLayout(
         title = "Producción Nueva",
         subtitle = "INGRESOS",
         infoText = "Presione botón lateral para escanear código QR de la pieza / manga",
         onBackClick = onBackClick,
         onSaveClick = { scannedCodes ->
-            // TODO: Implement save logic for production codes
-            println("=====================================")
-            println("BINGO! THE BUTTON WAS CLICKED!")
-            println("Total items scanned: ${scannedCodes.size}")
+            val payloadsToSave = mutableListOf<OperationPayload>()
+            val currentTimestamp = getCurrentTimestampIso()
 
-            // We loop through the 'scannedCodes' list to print each one
-            scannedCodes.forEachIndexed { index, code ->
-                println("Item ${index + 1}: $code")
+            scannedCodes.forEach { rawScan ->
+                try {
+                    val qrJson = JSONObject(rawScan)
+                    val mangaId = qrJson.optString("manga-id", rawScan)
+                    
+                    val metadatosJson = JSONObject().apply {
+                        put("turno", qrJson.optString("turno", "N/A"))
+                        put("maquina", qrJson.optString("maquina", "N/A"))
+                        put("peso_final_kg", qrJson.optDouble("peso_final_kg", 0.0))
+                    }.toString()
+
+                    val payload = OperationPayload(
+                        codigo_qr = mangaId,
+                        tipo_operacion = "INGRESO-PROD",
+                        locacion_origen = "ZONA_PRODUCCION",
+                        locacion_destino = "ALMACEN_PRINCIPAL",
+                        operario_id = "user@gmail.com",
+                        metadatos = metadatosJson,
+                        timestamp = currentTimestamp,
+                        isSynced = false
+                    )
+                    payloadsToSave.add(payload)
+                } catch (e: Exception) {
+                    Log.e("PayloadBuilder", "Failed to parse QR JSON: $rawScan")
+                }
             }
-            println("=====================================")
-
-            // 2. We print to the Android Logcat (Green text, easier to find)
-            Log.d("ENVA_TEST", "Successfully saved ${scannedCodes.size} codes: $scannedCodes")
+            payloadsToSave.forEach { Log.d("OperationPayload", it.toString()) }
         }
     )
 }
