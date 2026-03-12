@@ -10,9 +10,9 @@ interface OperationDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(operation: OperationEntity)
 
-    @Query("SELECT * FROM operations WHERE isSynced = 0")
-    suspend fun getUnsyncedOperations(): List<OperationEntity>
+    @Query("SELECT * FROM operations")
+    suspend fun getAllPendingOperations(): List<OperationEntity>
 
-    @Query("UPDATE operations SET isSynced = :isSynced WHERE id = :id")
-    suspend fun updateSyncStatus(id: Int, isSynced: Boolean)
+    @Query("DELETE FROM operations WHERE id = :operationId")
+    suspend fun deleteOperation(operationId: Int)
 }

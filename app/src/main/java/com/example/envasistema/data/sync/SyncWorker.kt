@@ -18,23 +18,25 @@ class SyncWorker(
         val database = AppDatabase.getDatabase(applicationContext)
         val dao = database.operationDao()
 
-        val unsyncedOperations = dao.getUnsyncedOperations()
+        // Get all operations currently stored in the PDA's local database
+        val pendingOperations = dao.getAllPendingOperations()
         
-        if (unsyncedOperations.isEmpty()) {
+        if (pendingOperations.isEmpty()) {
             return@withContext Result.success()
         }
 
-        Log.d("SyncWorker", "Starting sync for ${unsyncedOperations.size} operations")
+        Log.d("SyncWorker", "Starting sync for ${pendingOperations.size} operations")
 
         var allSuccessful = true
-        for (operation in unsyncedOperations) {
+        for (operation in pendingOperations) {
             val success = uploadToTheCloud(operation)
             if (success) {
-                dao.updateSyncStatus(operation.id, true)
-                Log.d("SyncWorker", "Successfully synced operation ID: ${operation.id}")
+                // Option A: Delete immediately upon successful upload to save local storage
+                dao.deleteOperation(operation.id)
+                Log.d("SyncWorker", "🗑️ DELETED LOCALLY: Operation ${operation.codigo_qr} successfully uploaded and removed from PDA.")
             } else {
                 allSuccessful = false
-                Log.e("SyncWorker", "Failed to sync operation ID: ${operation.id}")
+                Log.e("SyncWorker", "Failed to sync operation ID: ${operation.id}. Keeping locally.")
             }
         }
 
