@@ -65,3 +65,5 @@ Login y register al último papa.
 10452,M-500,Extrusora 3,OP-2026-99,Mañana,2026-03-12,5,Juan Perez,Azul,2026-03-12T10:30:00,25.5
 10453,M-500,Extrusora 3,OP-2026-99,Mañana,2026-03-12,5,Juan Perez,Azul,2026-03-12T10:30:00,25.5
 42,CERNIDOR ROMANO,HT-250B,OP1354,DIURNO,2026-01-03,0001,Admin,ROJO,2026-01-03/14:30:00,5.2,CER-ROM-STD,Cernidor Romano,DatoExtra1,DatoExtra2,DatoExtra3
+
+

@@ -6,6 +6,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.example.envasistema.data.local.AppDatabase
 import com.example.envasistema.data.local.OperationEntity
+import com.example.envasistema.data.remote.RetrofitClient
 import com.example.envasistema.data.remote.toNetworkDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -29,7 +30,6 @@ class SyncWorker(
 
         var allSuccessful = true
         for (operation in pendingOperations) {
-            // Map to DTO before sending to the cloud
             val success = uploadToTheCloud(operation)
             if (success) {
                 dao.deleteOperation(operation.id)
@@ -44,15 +44,20 @@ class SyncWorker(
     }
 
     private suspend fun uploadToTheCloud(operation: OperationEntity): Boolean {
-        // Convert to DTO to exclude 'peso_kg' from serialization
-        val networkPayload = operation.toNetworkDto()
-        
-        Log.d("SyncWorker", "NETWORK UPLOAD: Sending DTO (excluding peso_kg) -> $networkPayload")
-        
-        // Simulate network delay
-        kotlinx.coroutines.delay(1000)
-        
-        // Return false as per original requirements to simulate pending status
-        return false 
+        return try {
+            val networkPayload = operation.toNetworkDto()
+            val response = RetrofitClient.kardexApi.registerMovement(networkPayload)
+            
+            if (response.isSuccessful) {
+                Log.d("SyncWorker", "✅ SYNC SUCCESS: ${operation.codigo_qr}")
+                true
+            } else {
+                Log.e("SyncWorker", "❌ SYNC ERROR: ${response.code()} - ${response.errorBody()?.string()}")
+                false
+            }
+        } catch (e: Exception) {
+            Log.e("SyncWorker", "⚠️ NETWORK EXCEPTION: ${e.message}")
+            false
+        }
     }
 }
