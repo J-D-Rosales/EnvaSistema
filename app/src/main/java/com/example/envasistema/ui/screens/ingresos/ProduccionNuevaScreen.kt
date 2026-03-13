@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.envasistema.ui.components.ScannedItemsStagingArea
 import com.example.envasistema.ui.components.ScanningLayout
 import com.example.envasistema.ui.viewmodel.OperationViewModel
 import com.example.envasistema.ui.viewmodel.OperationViewModelFactory
@@ -24,11 +25,11 @@ fun ProduccionNuevaScreen(onBackClick: () -> Unit) {
         factory = OperationViewModelFactory(context.applicationContext as android.app.Application)
     )
 
+    // State Hoisting: Local UI state for the reusable Staging Area
+    val pendingScans = remember { mutableStateListOf<OperationPayload>() }
+
     var showDialog by remember { mutableStateOf(false) }
     var dialogText by remember { mutableStateOf("") }
-    
-    // Key to trigger clearing the ScanningLayout state
-    var scanningLayoutKey by remember { mutableIntStateOf(0) }
 
     if (showDialog) {
         AlertDialog(
@@ -43,62 +44,61 @@ fun ProduccionNuevaScreen(onBackClick: () -> Unit) {
         )
     }
 
-    key(scanningLayoutKey) {
-        ScanningLayout(
-            title = "Producción Nueva",
-            subtitle = "INGRESOS",
-            infoText = "Presione botón lateral para escanear código QR de la pieza / manga",
-            onBackClick = onBackClick,
-            onSaveClick = { scannedCodes ->
-                val payloadsToSave = mutableListOf<OperationPayload>()
-                val currentTimestamp = getCurrentTimestampIso()
+    ScanningLayout(
+        title = "Producción Nueva",
+        subtitle = "INGRESOS",
+        infoText = "Presione botón lateral para escanear código QR de la pieza / manga",
+        onBackClick = onBackClick,
+        showInternalCounter = false, // Disable default counter to use the Staging Area's header
+        externalScannedCodes = pendingScans.map { it.codigo_qr },
+        onCodeScanned = { rawScan ->
+            try {
+                val qrJson = parseCsvToJson(rawScan)
+                val mangaId = qrJson.optString("manga-id", rawScan)
+                
+                if (pendingScans.none { it.codigo_qr == mangaId }) {
+                    val metadatosJson = JSONObject().apply {
+                        put("turno", qrJson.optString("turno", "N/A"))
+                        put("maquina", qrJson.optString("maquina", "N/A"))
+                        put("peso_final_kg", qrJson.optDouble("peso_final_kg", 0.0))
+                    }.toString()
 
-                scannedCodes.forEach { rawScan ->
-                    try {
-                        val qrJson = parseCsvToJson(rawScan)
-                        val mangaId = qrJson.optString("manga-id", rawScan)
-                        
-                        val metadatosJson = JSONObject().apply {
-                            put("turno", qrJson.optString("turno", "N/A"))
-                            put("maquina", qrJson.optString("maquina", "N/A"))
-                            put("peso_final_kg", qrJson.optDouble("peso_final_kg", 0.0))
-                        }.toString()
-
-                        val payload = OperationPayload(
-                            codigo_qr = mangaId,
-                            tipo_operacion = "INGRESO-PROD",
-                            locacion_origen = "ZONA_PRODUCCION",
-                            locacion_destino = "ALMACEN_PRINCIPAL",
-                            operario_id = "user@gmail.com",
-                            metadatos = metadatosJson,
-                            timestamp = currentTimestamp,
-                            isSynced = false
-                        )
-                        payloadsToSave.add(payload)
-                        
-                        // Save to Room database via ViewModel
-                        viewModel.saveOperation(payload)
-                        
-                    } catch (e: Exception) {
-                        Log.e("PayloadBuilder", "Failed to parse QR CSV: $rawScan")
-                    }
+                    val payload = OperationPayload(
+                        codigo_qr = mangaId,
+                        tipo_operacion = "INGRESO-PROD",
+                        locacion_origen = "ZONA_PRODUCCION",
+                        locacion_destino = "ALMACEN_PRINCIPAL",
+                        operario_id = "user@gmail.com",
+                        metadatos = metadatosJson,
+                        timestamp = getCurrentTimestampIso(),
+                        isSynced = false
+                    )
+                    pendingScans.add(0, payload)
                 }
-
-                if (payloadsToSave.isNotEmpty()) {
-                    dialogText = payloadsToSave.joinToString("\n\n---\n\n") { 
-                        "Manga ID: ${it.codigo_qr}\nOp: ${it.tipo_operacion}\nMeta: ${it.metadatos}" 
-                    }
-                    showDialog = true
-                    Toast.makeText(context, "Guardado localmente", Toast.LENGTH_SHORT).show()
-                    
-                    // Reset the ScanningLayout state by changing the key
-                    scanningLayoutKey++
-                } else {
-                    Toast.makeText(context, "No se detectaron códigos válidos", Toast.LENGTH_SHORT).show()
-                }
+            } catch (e: Exception) {
+                Log.e("ProduccionNuevaScreen", "Failed to parse QR: $rawScan", e)
             }
-        )
-    }
+        },
+        onSaveClick = {
+            if (pendingScans.isNotEmpty()) {
+                val batchCount = pendingScans.size
+                pendingScans.forEach { payload ->
+                    viewModel.saveOperation(payload)
+                }
+                dialogText = "Se han registrado $batchCount códigos en la base de datos local."
+                showDialog = true
+                pendingScans.clear()
+                Toast.makeText(context, "Operación completada", Toast.LENGTH_SHORT).show()
+            }
+        },
+        scannedItemsContent = {
+            // Reusable component following State Hoisting
+            ScannedItemsStagingArea(
+                pendingScans = pendingScans,
+                onRemoveItem = { item -> pendingScans.remove(item) }
+            )
+        }
+    )
 }
 
 @Preview(showBackground = true)

@@ -49,15 +49,19 @@ fun ScanningLayout(
     infoIconColor: Color? = null,
     isSaveButtonEnabled: ((Int) -> Boolean)? = null,
     showScanningArea: Boolean = true,
-    extraContent: @Composable (ColumnScope.() -> Unit)? = null
+    showInternalCounter: Boolean = true, // New parameter to allow State Hoisting of the staging area
+    extraContent: @Composable (ColumnScope.() -> Unit)? = null,
+    externalScannedCodes: List<String>? = null,
+    onCodeScanned: ((String) -> Unit)? = null,
+    scannedItemsContent: @Composable (ColumnScope.() -> Unit)? = null
 ) {
-    var scannedCodes by remember { mutableStateOf(emptyList<String>()) }
+    var internalScannedCodes by remember { mutableStateOf(emptyList<String>()) }
+    val scannedCodes = externalScannedCodes ?: internalScannedCodes
+    
     var currentInput by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
     val context = LocalContext.current
     
-    // ML Kit components often fail to initialize in the Compose Preview environment (LocalInspectionMode).
-    // We avoid initializing the scanner when in preview to prevent IllegalStateException.
     val isPreview = LocalInspectionMode.current
     val scanner = remember { 
         if (isPreview) null else GmsBarcodeScanning.getClient(context) 
@@ -66,7 +70,15 @@ fun ScanningLayout(
     val scannCount = scannedCodes.size
     val buttonEnabled = isSaveButtonEnabled?.invoke(scannCount) ?: (scannCount > 0)
 
-    // Ensure focus is requested when the screen is visible
+    val handleNewCode: (String) -> Unit = { code ->
+        if (code.isNotEmpty() && !scannedCodes.contains(code)) {
+            if (externalScannedCodes == null) {
+                internalScannedCodes = internalScannedCodes + code
+            }
+            onCodeScanned?.invoke(code)
+        }
+    }
+
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
@@ -75,18 +87,14 @@ fun ScanningLayout(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF8F9FA))
-            // Re-request focus when background is clicked to ensure scanner always works
             .clickable { focusRequester.requestFocus() }
     ) {
-        // Hidden TextField to capture hardware scanner input
         TextField(
             value = currentInput,
             onValueChange = { newValue ->
                 if (newValue.contains("\n")) {
                     val code = newValue.replace("\n", "").trim()
-                    if (code.isNotEmpty() && !scannedCodes.contains(code)) {
-                        scannedCodes = scannedCodes + code
-                    }
+                    handleNewCode(code)
                     currentInput = ""
                 } else {
                     currentInput = newValue
@@ -101,9 +109,7 @@ fun ScanningLayout(
             keyboardActions = KeyboardActions(
                 onDone = {
                     val code = currentInput.trim()
-                    if (code.isNotEmpty() && !scannedCodes.contains(code)) {
-                        scannedCodes = scannedCodes + code
-                    }
+                    handleNewCode(code)
                     currentInput = ""
                     focusRequester.requestFocus()
                 }
@@ -131,7 +137,6 @@ fun ScanningLayout(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                // Info Alert Card
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     color = infoCardBackground,
@@ -161,7 +166,6 @@ fun ScanningLayout(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Scan Area
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -172,8 +176,8 @@ fun ScanningLayout(
                             scanner?.startScan()
                                 ?.addOnSuccessListener { barcode ->
                                     val code = barcode.rawValue
-                                    if (!code.isNullOrEmpty() && !scannedCodes.contains(code)) {
-                                        scannedCodes = scannedCodes + code
+                                    if (code != null) {
+                                        handleNewCode(code)
                                     }
                                     focusRequester.requestFocus()
                                 }
@@ -216,44 +220,50 @@ fun ScanningLayout(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Scanned Codes Counter
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        color = primaryColor,
-                        shape = CircleShape,
-                        modifier = Modifier.size(32.dp)
+                if (showInternalCounter) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(text = scannedCodes.size.toString(), color = Color.White, fontWeight = FontWeight.Bold)
+                        Surface(
+                            color = primaryColor,
+                            shape = CircleShape,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(text = scannedCodes.size.toString(), color = Color.White, fontWeight = FontWeight.Bold)
+                            }
                         }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = counterLabel,
+                            color = Color(0xFF455A64),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = counterLabel,
-                        color = Color(0xFF455A64),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
 
-                Spacer(modifier = Modifier.height(32.dp))
-                
-                if (scannedCodes.isEmpty()) {
-                    Text(
-                        text = "No hay códigos escaneados",
-                        color = Color(0xFFBDBDBD),
-                        fontSize = 15.sp
-                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    if (scannedCodes.isEmpty()) {
+                        Text(
+                            text = "No hay códigos escaneados",
+                            color = Color(0xFFBDBDBD),
+                            fontSize = 15.sp
+                        )
+                    } else {
+                        scannedItemsContent?.invoke(this)
+                    }
+                } else {
+                    // If internal counter is disabled, we just render the content
+                    // which is expected to include its own header (like ScannedItemsStagingArea)
+                    scannedItemsContent?.invoke(this)
                 }
             }
 
             Spacer(modifier = Modifier.weight(1f))
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Footer Button
             Button(
                 onClick = { if (buttonEnabled) onSaveClick(scannedCodes) },
                 modifier = Modifier

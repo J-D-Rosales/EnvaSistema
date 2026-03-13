@@ -1,7 +1,7 @@
 package com.example.envasistema.ui.screens.movimientos
 
 import android.util.Log
-import androidx.compose.foundation.border
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -11,33 +11,62 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.envasistema.ui.components.ScannedItemsStagingArea
 import com.example.envasistema.ui.components.ScanningLayout
+import com.example.envasistema.ui.viewmodel.OperationViewModel
+import com.example.envasistema.ui.viewmodel.OperationViewModelFactory
 import com.example.envasistema.util.OperationPayload
 import com.example.envasistema.util.getCurrentTimestampIso
+import com.example.envasistema.util.parseCsvToJson
 import org.json.JSONObject
 
 @Composable
 fun TransferenciaInventarioScreen(onBackClick: () -> Unit) {
+    val context = LocalContext.current
+    val viewModel: OperationViewModel = viewModel(
+        factory = OperationViewModelFactory(context.applicationContext as android.app.Application)
+    )
+
+    val pendingScans = remember { mutableStateListOf<OperationPayload>() }
     val currentLocation by remember { mutableStateOf("ENVA") }
+
+    var showDialog by remember { mutableStateOf(false) }
+    var dialogText by remember { mutableStateOf("") }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            confirmButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text("Cerrar")
+                }
+            },
+            title = { Text("Transferencia Registrada") },
+            text = { Text(dialogText) }
+        )
+    }
 
     ScanningLayout(
         title = "Transferencia de Inventario",
         subtitle = "MOVIMIENTOS INTERNOS",
         infoText = "RECEPCIÓN — Escaneo de Productos\nEscanee los códigos QR de los productos. La transferencia se completa cuando otro terminal escanea el mismo producto.",
         onBackClick = onBackClick,
-        counterLabel = "Productos escaneados",
         saveButtonText = "Confirmar Transferencia",
         saveButtonIcon = Icons.Default.Inventory2,
+        showInternalCounter = false,
+        externalScannedCodes = pendingScans.map { it.codigo_qr },
         extraContent = {
             Card(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                shape = RoundedCornerShape(16.dp),
-                border = Box(Modifier.border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(16.dp))).let { null }
+                shape = RoundedCornerShape(16.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -56,15 +85,12 @@ fun TransferenciaInventarioScreen(onBackClick: () -> Unit) {
                 }
             }
         },
-        onSaveClick = { scannedCodes ->
-            val payloadsToSave = mutableListOf<OperationPayload>()
-            val currentTimestamp = getCurrentTimestampIso()
-
-            scannedCodes.forEach { rawScan ->
-                try {
-                    val qrJson = JSONObject(rawScan)
-                    val mangaId = qrJson.optString("manga-id", rawScan)
-                    
+        onCodeScanned = { rawScan ->
+            try {
+                val qrJson = parseCsvToJson(rawScan)
+                val mangaId = qrJson.optString("manga-id", rawScan)
+                
+                if (pendingScans.none { it.codigo_qr == mangaId }) {
                     val metadatosJson = JSONObject().apply {
                         put("n_op", qrJson.optString("n_op", "N/A"))
                         put("operador", qrJson.optString("operador", "N/A"))
@@ -72,20 +98,43 @@ fun TransferenciaInventarioScreen(onBackClick: () -> Unit) {
 
                     val payload = OperationPayload(
                         codigo_qr = mangaId,
-                        tipo_operacion = "MOV-INTERNO",
+                        tipo_operacion = "MOVIMIENTOS",
                         locacion_origen = currentLocation,
                         locacion_destino = "ZONA_TRANSITO",
                         operario_id = "user@gmail.com",
                         metadatos = metadatosJson,
-                        timestamp = currentTimestamp,
+                        timestamp = getCurrentTimestampIso(),
                         isSynced = false
                     )
-                    payloadsToSave.add(payload)
-                } catch (e: Exception) {
-                    Log.e("PayloadBuilder", "Failed to parse QR JSON: $rawScan")
+                    pendingScans.add(0, payload)
                 }
+            } catch (e: Exception) {
+                Log.e("Transferencia", "Failed to parse QR: $rawScan")
             }
-            payloadsToSave.forEach { Log.d("OperationPayload", it.toString()) }
+        },
+        onSaveClick = {
+            if (pendingScans.isNotEmpty()) {
+                val batchCount = pendingScans.size
+                pendingScans.forEach { payload ->
+                    viewModel.saveOperation(payload)
+                }
+                dialogText = "Se han registrado $batchCount transferencias localmente."
+                showDialog = true
+                pendingScans.clear()
+                Toast.makeText(context, "Operación completada", Toast.LENGTH_SHORT).show()
+            }
+        },
+        scannedItemsContent = {
+            ScannedItemsStagingArea(
+                pendingScans = pendingScans,
+                onRemoveItem = { item -> pendingScans.remove(item) }
+            )
         }
     )
+}
+
+@Preview(showBackground = true)
+@Composable
+fun TransferenciaInventarioScreenPreview() {
+    TransferenciaInventarioScreen(onBackClick = {})
 }
