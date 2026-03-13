@@ -6,6 +6,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.example.envasistema.data.local.AppDatabase
 import com.example.envasistema.data.local.OperationEntity
+import com.example.envasistema.data.remote.toNetworkDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -18,7 +19,6 @@ class SyncWorker(
         val database = AppDatabase.getDatabase(applicationContext)
         val dao = database.operationDao()
 
-        // Get all operations currently stored in the PDA's local database
         val pendingOperations = dao.getAllPendingOperations()
         
         if (pendingOperations.isEmpty()) {
@@ -29,29 +29,30 @@ class SyncWorker(
 
         var allSuccessful = true
         for (operation in pendingOperations) {
+            // Map to DTO before sending to the cloud
             val success = uploadToTheCloud(operation)
             if (success) {
-                // Option A: Delete immediately upon successful upload to save local storage
                 dao.deleteOperation(operation.id)
-                Log.d("SyncWorker", "🗑️ DELETED LOCALLY: Operation ${operation.codigo_qr} successfully uploaded and removed from PDA.")
+                Log.d("SyncWorker", "🗑️ DELETED LOCALLY: ${operation.codigo_qr}")
             } else {
                 allSuccessful = false
-                Log.e("SyncWorker", "Failed to sync operation ID: ${operation.id}. Keeping locally.")
+                Log.e("SyncWorker", "Failed to sync operation ID: ${operation.id}")
             }
         }
 
         if (allSuccessful) Result.success() else Result.retry()
     }
 
-    /**
-     * Stub function for cloud upload as requested.
-     * Currently returns false to keep data in local Room database as pending.
-     */
-    private suspend fun uploadToTheCloud(payload: OperationEntity): Boolean {
-        Log.d("SyncWorker", "FAKE UPLOAD: Sending payload to cloud -> ${payload.codigo_qr}")
+    private suspend fun uploadToTheCloud(operation: OperationEntity): Boolean {
+        // Convert to DTO to exclude 'peso_kg' from serialization
+        val networkPayload = operation.toNetworkDto()
+        
+        Log.d("SyncWorker", "NETWORK UPLOAD: Sending DTO (excluding peso_kg) -> $networkPayload")
+        
         // Simulate network delay
         kotlinx.coroutines.delay(1000)
-        // Returns false as per requirements to simulate pending sync
+        
+        // Return false as per original requirements to simulate pending status
         return false 
     }
 }

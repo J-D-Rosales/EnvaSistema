@@ -13,7 +13,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.envasistema.util.OperationPayload
-import org.json.JSONObject
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -23,13 +22,11 @@ fun ScannedItemCard(
     payload: OperationPayload,
     onRemove: () -> Unit
 ) {
-    // Extract weight from metadata JSON string
-    val peso = try {
-        val json = JSONObject(payload.metadatos)
-        json.optDouble("peso_final_kg", 0.0)
-    } catch (e: Exception) {
-        0.0
-    }
+    // 1. Dynamic Name with Fallback
+    val name = if (payload.pieza_nombre.isBlank()) "Pieza Desconocida" else payload.pieza_nombre
+
+    // 2. Dynamic Weight from Payload
+    val pesoDisplay = "${payload.peso_kg} kg"
 
     // Format ISO timestamp to local readable time (e.g., 12:26 PM)
     val hora = try {
@@ -74,13 +71,13 @@ fun ScannedItemCard(
             
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Jarra",
+                    text = name,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                     color = Color(0xFF212121)
                 )
                 Text(
-                    text = "Peso: $peso kg",
+                    text = "Peso: $pesoDisplay",
                     fontSize = 14.sp,
                     color = Color(0xFF757575)
                 )

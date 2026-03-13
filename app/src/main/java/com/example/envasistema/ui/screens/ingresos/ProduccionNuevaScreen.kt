@@ -14,8 +14,7 @@ import com.example.envasistema.ui.components.ScanningLayout
 import com.example.envasistema.ui.viewmodel.OperationViewModel
 import com.example.envasistema.ui.viewmodel.OperationViewModelFactory
 import com.example.envasistema.util.OperationPayload
-import com.example.envasistema.util.getCurrentTimestampIso
-import com.example.envasistema.util.parseCsvToJson
+import com.example.envasistema.util.parseQrToPayload
 import org.json.JSONObject
 
 @Composable
@@ -49,34 +48,25 @@ fun ProduccionNuevaScreen(onBackClick: () -> Unit) {
         subtitle = "INGRESOS",
         infoText = "Presione botón lateral para escanear código QR de la pieza / manga",
         onBackClick = onBackClick,
-        showInternalCounter = false, // Disable default counter to use the Staging Area's header
+        showInternalCounter = false,
         externalScannedCodes = pendingScans.map { it.codigo_qr },
         onCodeScanned = { rawScan ->
-            try {
-                val qrJson = parseCsvToJson(rawScan)
-                val mangaId = qrJson.optString("manga-id", rawScan)
-                
-                if (pendingScans.none { it.codigo_qr == mangaId }) {
-                    val metadatosJson = JSONObject().apply {
-                        put("turno", qrJson.optString("turno", "N/A"))
-                        put("maquina", qrJson.optString("maquina", "N/A"))
-                        put("peso_final_kg", qrJson.optDouble("peso_final_kg", 0.0))
-                    }.toString()
+            // Use the robust parser instead of manual JSON conversion
+            val payload = parseQrToPayload(
+                rawScan = rawScan,
+                tipoOperacion = "INGRESO-PROD",
+                locacionOrigen = "ZONA_PRODUCCION",
+                locacionDestino = "ALMACEN_PRINCIPAL",
+                operarioId = "user@gmail.com"
+            )
 
-                    val payload = OperationPayload(
-                        codigo_qr = mangaId,
-                        tipo_operacion = "INGRESO-PROD",
-                        locacion_origen = "ZONA_PRODUCCION",
-                        locacion_destino = "ALMACEN_PRINCIPAL",
-                        operario_id = "user@gmail.com",
-                        metadatos = metadatosJson,
-                        timestamp = getCurrentTimestampIso(),
-                        isSynced = false
-                    )
+            if (payload != null) {
+                if (pendingScans.none { it.codigo_qr == payload.codigo_qr }) {
                     pendingScans.add(0, payload)
                 }
-            } catch (e: Exception) {
-                Log.e("ProduccionNuevaScreen", "Failed to parse QR: $rawScan", e)
+            } else {
+                Log.e("ProduccionNuevaScreen", "Failed to parse QR or insufficient fields: $rawScan")
+                Toast.makeText(context, "QR inválido o incompleto", Toast.LENGTH_SHORT).show()
             }
         },
         onSaveClick = {
@@ -92,7 +82,6 @@ fun ProduccionNuevaScreen(onBackClick: () -> Unit) {
             }
         },
         scannedItemsContent = {
-            // Reusable component following State Hoisting
             ScannedItemsStagingArea(
                 pendingScans = pendingScans,
                 onRemoveItem = { item -> pendingScans.remove(item) }

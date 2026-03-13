@@ -3,9 +3,9 @@ package com.example.envasistema.data.repository
 import android.content.Context
 import androidx.work.*
 import com.example.envasistema.data.local.AppDatabase
-import com.example.envasistema.data.local.OperationEntity
 import com.example.envasistema.data.sync.SyncWorker
 import com.example.envasistema.util.OperationPayload
+import com.example.envasistema.util.toEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -18,17 +18,9 @@ class OperationRepository(private val context: Context) {
      * Saves an OperationPayload to the local Room database and triggers a background sync.
      */
     suspend fun saveOperation(payload: OperationPayload) = withContext(Dispatchers.IO) {
-        // 1. Map Payload to Entity
-        val entity = OperationEntity(
-            codigo_qr = payload.codigo_qr,
-            tipo_operacion = payload.tipo_operacion,
-            locacion_origen = payload.locacion_origen,
-            locacion_destino = payload.locacion_destino,
-            operario_id = payload.operario_id,
-            metadatos = payload.metadatos,
-            timestamp = payload.timestamp,
-            isSynced = false
-        )
+        // 1. Map Payload to Entity using the new extension function
+        // This ensures piezo_nombre, peso_kg, extra1, extra2, and extra3 are preserved.
+        val entity = payload.toEntity()
 
         // 2. Save to Room
         operationDao.insert(entity)

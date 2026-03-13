@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [OperationEntity::class], version = 1, exportSchema = false)
+@Database(entities = [OperationEntity::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun operationDao(): OperationDao
 
@@ -19,7 +19,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "enva_sistema_db"
-                ).build()
+                )
+                .fallbackToDestructiveMigration() // Safely wipe table on schema mismatch during dev
+                .build()
                 INSTANCE = instance
                 instance
             }

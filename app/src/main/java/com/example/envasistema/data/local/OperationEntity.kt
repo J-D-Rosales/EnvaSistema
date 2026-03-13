@@ -17,5 +17,12 @@ data class OperationEntity(
     val operario_id: String,
     val metadatos: String,
     val timestamp: String,
-    val isSynced: Boolean = false
+    val isSynced: Boolean = false,
+    
+    // New Fields for Structured Data
+    val extra1: String? = null,
+    val extra2: String? = null,
+    val extra3: String? = null,
+    val pieza_nombre: String = "Producto",
+    val peso_kg: Double = 0.0
 )
