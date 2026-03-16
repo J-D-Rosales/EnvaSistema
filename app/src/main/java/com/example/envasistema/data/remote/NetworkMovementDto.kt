@@ -24,7 +24,7 @@ data class NetworkMovementDto(
 /**
  * Mapper extension function to convert a local Room Entity to a Network DTO.
  */
-fun OperationEntity.toNetworkDto(): NetworkMovementDto {
+fun OperationEntity.toNetworkMovementDto(): NetworkMovementDto {
     return NetworkMovementDto(
         codigoQr = this.codigo_qr,
         tipoOperacion = this.tipo_operacion,

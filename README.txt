@@ -54,8 +54,6 @@ in compononets it calls from the information of the qr
 All your work.
 
 Today:
-Design of the card. And the card in code.  And the realtionship of the attributes of the card. (DUE TODAY)
-CARD: NOMBRE PESO Y HORA.,
 
 SHOW THAT THE DATABASE IS WORKING FINE (DUE TODAY)
 Due the other day: (Add the three attributes for sending the payload). It's nmot working the datbase yet

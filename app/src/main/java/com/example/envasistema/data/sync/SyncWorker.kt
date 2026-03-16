@@ -7,7 +7,7 @@ import androidx.work.WorkerParameters
 import com.example.envasistema.data.local.AppDatabase
 import com.example.envasistema.data.local.OperationEntity
 import com.example.envasistema.data.remote.RetrofitClient
-import com.example.envasistema.data.remote.toNetworkDto
+import com.example.envasistema.data.remote.toNetworkMovementDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -45,7 +45,7 @@ class SyncWorker(
 
     private suspend fun uploadToTheCloud(operation: OperationEntity): Boolean {
         return try {
-            val networkPayload = operation.toNetworkDto()
+            val networkPayload = operation.toNetworkMovementDto()
             val response = RetrofitClient.kardexApi.registerMovement(networkPayload)
             
             if (response.isSuccessful) {
