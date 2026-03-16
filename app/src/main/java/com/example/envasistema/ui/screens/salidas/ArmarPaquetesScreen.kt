@@ -16,8 +16,7 @@ import com.example.envasistema.ui.components.ScanningLayout
 import com.example.envasistema.ui.viewmodel.OperationViewModel
 import com.example.envasistema.ui.viewmodel.OperationViewModelFactory
 import com.example.envasistema.util.OperationPayload
-import com.example.envasistema.util.getCurrentTimestampIso
-import com.example.envasistema.util.parseCsvToJson
+import com.example.envasistema.util.parseQrToPayload
 import org.json.JSONObject
 
 @Composable
@@ -55,30 +54,21 @@ fun ArmarPaquetesScreen(onBackClick: () -> Unit) {
         showInternalCounter = false,
         externalScannedCodes = pendingScans.map { it.codigo_qr },
         onCodeScanned = { rawScan ->
-            try {
-                val qrJson = parseCsvToJson(rawScan)
-                val mangaId = qrJson.optString("manga-id", rawScan)
-                
-                if (pendingScans.none { it.codigo_qr == mangaId }) {
-                    val metadatosJson = JSONObject().apply {
-                        put("n_op", qrJson.optString("n_op", "N/A"))
-                        put("fecha_de_ot", qrJson.optString("fecha_de_ot", "N/A"))
-                    }.toString()
+            val payload = parseQrToPayload(
+                rawScan = rawScan,
+                tipoOperacion = "ARMAR_PAQUETES",
+                locacionOrigen = "ALMACEN_PARTES",
+                locacionDestino = "ZONA_DESPACHO",
+                operarioId = "user@gmail.com"
+            )
 
-                    val payload = OperationPayload(
-                        codigo_qr = mangaId,
-                        tipo_operacion = "ARMAR_PAQUETES",
-                        locacion_origen = "ALMACEN_PARTES",
-                        locacion_destino = "ZONA_DESPACHO",
-                        operario_id = "user@gmail.com",
-                        metadatos = metadatosJson,
-                        timestamp = getCurrentTimestampIso(),
-                        isSynced = false
-                    )
+            if (payload != null) {
+                if (pendingScans.none { it.codigo_qr == payload.codigo_qr }) {
                     pendingScans.add(0, payload)
                 }
-            } catch (e: Exception) {
-                Log.e("ArmarPaquetes", "Failed to parse QR: $rawScan")
+            } else {
+                Log.e("ArmarPaquetesScreen", "Failed to parse QR or insufficient fields: $rawScan")
+                Toast.makeText(context, "QR inválido o incompleto", Toast.LENGTH_SHORT).show()
             }
         },
         onSaveClick = {

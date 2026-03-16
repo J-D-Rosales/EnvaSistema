@@ -2,6 +2,7 @@ package com.example.envasistema.ui.screens.movimientos
 
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -22,8 +23,7 @@ import com.example.envasistema.ui.components.ScanningLayout
 import com.example.envasistema.ui.viewmodel.OperationViewModel
 import com.example.envasistema.ui.viewmodel.OperationViewModelFactory
 import com.example.envasistema.util.OperationPayload
-import com.example.envasistema.util.getCurrentTimestampIso
-import com.example.envasistema.util.parseCsvToJson
+import com.example.envasistema.util.parseQrToPayload
 import org.json.JSONObject
 
 @Composable
@@ -35,6 +35,9 @@ fun TransferenciaInventarioScreen(onBackClick: () -> Unit) {
 
     val pendingScans = remember { mutableStateListOf<OperationPayload>() }
     val currentLocation by remember { mutableStateOf("ENVA") }
+    
+    // UI State for Transfer Step
+    var selectedStep by remember { mutableStateOf("INICIAR") } // "INICIAR" or "FINALIZAR"
 
     var showDialog by remember { mutableStateOf(false) }
     var dialogText by remember { mutableStateOf("") }
@@ -86,37 +89,33 @@ fun TransferenciaInventarioScreen(onBackClick: () -> Unit) {
             }
         },
         onCodeScanned = { rawScan ->
-            try {
-                val qrJson = parseCsvToJson(rawScan)
-                val mangaId = qrJson.optString("manga-id", rawScan)
-                
-                if (pendingScans.none { it.codigo_qr == mangaId }) {
-                    val metadatosJson = JSONObject().apply {
-                        put("n_op", qrJson.optString("n_op", "N/A"))
-                        put("operador", qrJson.optString("operador", "N/A"))
-                    }.toString()
+            val payload = parseQrToPayload(
+                rawScan = rawScan,
+                tipoOperacion = "MOVIMIENTOS",
+                locacionOrigen = currentLocation,
+                locacionDestino = "TRANSITO",
+                operarioId = "user@gmail.com"
+            )
 
-                    val payload = OperationPayload(
-                        codigo_qr = mangaId,
-                        tipo_operacion = "MOVIMIENTOS",
-                        locacion_origen = currentLocation,
-                        locacion_destino = "ZONA_TRANSITO",
-                        operario_id = "user@gmail.com",
-                        metadatos = metadatosJson,
-                        timestamp = getCurrentTimestampIso(),
-                        isSynced = false
-                    )
+            if (payload != null) {
+                if (pendingScans.none { it.codigo_qr == payload.codigo_qr }) {
                     pendingScans.add(0, payload)
                 }
-            } catch (e: Exception) {
-                Log.e("Transferencia", "Failed to parse QR: $rawScan")
+            } else {
+                Log.e("TransferenciaScreen", "Failed to parse QR or insufficient fields: $rawScan")
+                Toast.makeText(context, "QR inválido o incompleto", Toast.LENGTH_SHORT).show()
             }
         },
         onSaveClick = {
             if (pendingScans.isNotEmpty()) {
                 val batchCount = pendingScans.size
                 pendingScans.forEach { payload ->
-                    viewModel.saveOperation(payload)
+                    // Logic Modification: Format locations based on toggle state before saving
+                    val finalPayload = payload.copy(
+                        locacion_origen = if (selectedStep == "INICIAR") currentLocation else "TRANSITO",
+                        locacion_destino = if (selectedStep == "INICIAR") "TRANSITO" else currentLocation
+                    )
+                    viewModel.saveOperation(finalPayload)
                 }
                 dialogText = "Se han registrado $batchCount transferencias localmente."
                 showDialog = true
@@ -129,6 +128,36 @@ fun TransferenciaInventarioScreen(onBackClick: () -> Unit) {
                 pendingScans = pendingScans,
                 onRemoveItem = { item -> pendingScans.remove(item) }
             )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // UI Update: Transfer Step Toggle
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F3F4)),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically, 
+                        modifier = Modifier.clickable { selectedStep = "INICIAR" }
+                    ) {
+                        RadioButton(selected = selectedStep == "INICIAR", onClick = { selectedStep = "INICIAR" })
+                        Text("Iniciar Traslado", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically, 
+                        modifier = Modifier.clickable { selectedStep = "FINALIZAR" }
+                    ) {
+                        RadioButton(selected = selectedStep == "FINALIZAR", onClick = { selectedStep = "FINALIZAR" })
+                        Text("Finalizar Traslado", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
         }
     )
 }

@@ -18,8 +18,7 @@ import com.example.envasistema.ui.components.ScanningLayout
 import com.example.envasistema.ui.viewmodel.OperationViewModel
 import com.example.envasistema.ui.viewmodel.OperationViewModelFactory
 import com.example.envasistema.util.OperationPayload
-import com.example.envasistema.util.getCurrentTimestampIso
-import com.example.envasistema.util.parseCsvToJson
+import com.example.envasistema.util.parseQrToPayload
 import org.json.JSONObject
 
 @Composable
@@ -61,31 +60,21 @@ fun MermaMolinoScreen(onBackClick: () -> Unit) {
         showInternalCounter = false,
         externalScannedCodes = pendingScans.map { it.codigo_qr },
         onCodeScanned = { rawScan ->
-            try {
-                val qrJson = parseCsvToJson(rawScan)
-                val mangaId = qrJson.optString("manga-id", rawScan)
-                
-                if (pendingScans.none { it.codigo_qr == mangaId }) {
-                    val metadatosJson = JSONObject().apply {
-                        put("peso_final_kg", qrJson.optDouble("peso_final_kg", 0.0))
-                        put("molde", qrJson.optString("molde", "N/A"))
-                        put("maquina", qrJson.optString("maquina", "N/A"))
-                    }.toString()
+            val payload = parseQrToPayload(
+                rawScan = rawScan,
+                tipoOperacion = "MERMA_MOLINO",
+                locacionOrigen = "ALMACEN_PRINCIPAL",
+                locacionDestino = "MOLINO_DESTRUCCION",
+                operarioId = "user@gmail.com"
+            )
 
-                    val payload = OperationPayload(
-                        codigo_qr = mangaId,
-                        tipo_operacion = "MERMA_MOLINO",
-                        locacion_origen = "ALMACEN_PRINCIPAL",
-                        locacion_destino = "MOLINO_DESTRUCCION",
-                        operario_id = "user@gmail.com",
-                        metadatos = metadatosJson,
-                        timestamp = getCurrentTimestampIso(),
-                        isSynced = false
-                    )
+            if (payload != null) {
+                if (pendingScans.none { it.codigo_qr == payload.codigo_qr }) {
                     pendingScans.add(0, payload)
                 }
-            } catch (e: Exception) {
-                Log.e("MermaMolino", "Failed to parse QR: $rawScan")
+            } else {
+                Log.e("MermaMolinoScreen", "Failed to parse QR or insufficient fields: $rawScan")
+                Toast.makeText(context, "QR inválido o incompleto", Toast.LENGTH_SHORT).show()
             }
         },
         onSaveClick = {

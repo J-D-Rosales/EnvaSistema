@@ -13,7 +13,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -24,13 +23,12 @@ import com.example.envasistema.ui.components.ScanningLayout
 import com.example.envasistema.ui.viewmodel.OperationViewModel
 import com.example.envasistema.ui.viewmodel.OperationViewModelFactory
 import com.example.envasistema.util.OperationPayload
-import com.example.envasistema.util.getCurrentTimestampIso
-import com.example.envasistema.util.parseCsvToJson
+import com.example.envasistema.util.parseQrToPayload
 import org.json.JSONObject
 
 @Composable
 fun DonacionesScreen(onBackClick: () -> Unit) {
-    val context = LocalContext.current
+    val context = androidx.compose.ui.platform.LocalContext.current
     val viewModel: OperationViewModel = viewModel(
         factory = OperationViewModelFactory(context.applicationContext as android.app.Application)
     )
@@ -128,30 +126,26 @@ fun DonacionesScreen(onBackClick: () -> Unit) {
             }
         },
         onCodeScanned = { rawScan ->
-            try {
-                val qrJson = parseCsvToJson(rawScan)
-                val mangaId = qrJson.optString("manga-id", rawScan)
-                
-                if (pendingScans.none { it.codigo_qr == mangaId }) {
-                    val metadatosJson = JSONObject().apply {
-                        put("destino", if (selectedDestino.isEmpty()) "N/A" else selectedDestino)
-                        put("peso_final_kg", qrJson.optDouble("peso_final_kg", 0.0))
-                    }.toString()
+            val payload = parseQrToPayload(
+                rawScan = rawScan,
+                tipoOperacion = "DONACIONES",
+                locacionOrigen = "ALMACEN_PRINCIPAL",
+                locacionDestino = "DONACION_EXTERNA",
+                operarioId = "user@gmail.com"
+            )
 
-                    val payload = OperationPayload(
-                        codigo_qr = mangaId,
-                        tipo_operacion = "DONACIONES",
-                        locacion_origen = "ALMACEN_PRINCIPAL",
-                        locacion_destino = "DONACION_EXTERNA",
-                        operario_id = "user@gmail.com",
-                        metadatos = metadatosJson,
-                        timestamp = getCurrentTimestampIso(),
-                        isSynced = false
-                    )
-                    pendingScans.add(0, payload)
+            if (payload != null) {
+                if (pendingScans.none { it.codigo_qr == payload.codigo_qr }) {
+                    // Enrich metadatos with selected destination
+                    val updatedMetadatos = JSONObject(payload.metadatos).apply {
+                        put("destino", if (selectedDestino.isEmpty()) "N/A" else selectedDestino)
+                    }.toString()
+                    
+                    pendingScans.add(0, payload.copy(metadatos = updatedMetadatos))
                 }
-            } catch (e: Exception) {
-                Log.e("Donaciones", "Failed to parse QR: $rawScan")
+            } else {
+                Log.e("DonacionesScreen", "Failed to parse QR or insufficient fields: $rawScan")
+                Toast.makeText(context, "QR inválido o incompleto", Toast.LENGTH_SHORT).show()
             }
         },
         onSaveClick = {

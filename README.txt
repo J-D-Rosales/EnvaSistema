@@ -65,3 +65,5 @@ Login y register al último papa.
 42,CERNIDOR ROMANO,HT-250B,OP1354,DIURNO,2026-01-03,0001,Admin,ROJO,2026-01-03/14:30:00,5.2,CER-ROM-STD,Cernidor Romano,DatoExtra1,DatoExtra2,DatoExtra3
 
 
+Devolucion de no armado no funciona cuando la tarjeta aprece , da solamente Pructo con peso 0
+

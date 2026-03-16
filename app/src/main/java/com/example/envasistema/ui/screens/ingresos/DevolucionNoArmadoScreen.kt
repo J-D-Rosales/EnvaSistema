@@ -14,8 +14,7 @@ import com.example.envasistema.ui.components.ScanningLayout
 import com.example.envasistema.ui.viewmodel.OperationViewModel
 import com.example.envasistema.ui.viewmodel.OperationViewModelFactory
 import com.example.envasistema.util.OperationPayload
-import com.example.envasistema.util.getCurrentTimestampIso
-import com.example.envasistema.util.parseCsvToJson
+import com.example.envasistema.util.parseQrToPayload
 import org.json.JSONObject
 
 @Composable
@@ -52,31 +51,22 @@ fun DevolucionNoArmadoScreen(onBackClick: () -> Unit) {
         showInternalCounter = false,
         externalScannedCodes = pendingScans.map { it.codigo_qr },
         onCodeScanned = { rawScan ->
-            try {
-                val qrJson = parseCsvToJson(rawScan)
-                val mangaId = qrJson.optString("manga-id", rawScan)
-                
-                if (pendingScans.none { it.codigo_qr == mangaId }) {
-                    val metadatosJson = JSONObject().apply {
-                        put("operador", qrJson.optString("operador", "N/A"))
-                        put("color", qrJson.optString("color", "N/A"))
-                        put("n_op", qrJson.optString("n_op", "N/A"))
-                    }.toString()
+            // Use the robust parser instead of manual JSON conversion
+            val payload = parseQrToPayload(
+                rawScan = rawScan,
+                tipoOperacion = "DEVOLUCION_NO_ARMADO",
+                locacionOrigen = "ALMACEN_CLIENTE",
+                locacionDestino = "ZONA_DEVOLUCIONES",
+                operarioId = "user@gmail.com"
+            )
 
-                    val payload = OperationPayload(
-                        codigo_qr = mangaId,
-                        tipo_operacion = "DEVOLUCION_NO_ARMADO",
-                        locacion_origen = "ALMACEN_CLIENTE",
-                        locacion_destino = "ZONA_DEVOLUCIONES",
-                        operario_id = "user@gmail.com",
-                        metadatos = metadatosJson,
-                        timestamp = getCurrentTimestampIso(),
-                        isSynced = false
-                    )
+            if (payload != null) {
+                if (pendingScans.none { it.codigo_qr == payload.codigo_qr }) {
                     pendingScans.add(0, payload)
                 }
-            } catch (e: Exception) {
-                Log.e("DevolucionNoArmado", "Failed to parse QR: $rawScan")
+            } else {
+                Log.e("DevolucionNoArmadoScreen", "Failed to parse QR or insufficient fields: $rawScan")
+                Toast.makeText(context, "QR inválido o incompleto", Toast.LENGTH_SHORT).show()
             }
         },
         onSaveClick = {
