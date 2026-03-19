@@ -10,21 +10,21 @@ import java.time.format.DateTimeFormatter
  * Data class representing the operation to be performed.
  */
 data class OperationPayload(
-    val codigo_qr: String,
-    val tipo_operacion: String,
-    val locacion_origen: String,
-    val locacion_destino: String,
-    val operario_id: String,
-    val metadatos: String,
-    val timestamp: String,
-    val isSynced: Boolean = false,
+    val codigo_qr: String, // DOne from the scan
+    val tipo_operacion: String, // Donde from the page you are currently in
+    val locacion_origen: String, // F Done from the login page (NOt implemented yet)
+    val locacion_destino: String, // Done from the page you are currently in
+    val operario_id: String, // F DOnde from login page (not implemented yet)
+    val metadatos: String, // No idea where
+    val timestamp: String, // From the scan in the qr
+    val isSynced: Boolean = false, // ALways 0 until you scanned which converts to 1
     
     // New Fields for Structured Data
-    val extra1: String? = null,
-    val extra2: String? = null,
-    val extra3: String? = null,
-    val pieza_nombre: String = "Producto",
-    val peso_kg: Double = 0.0
+    val extra1: String? = null, //future, now nothing
+    val extra2: String? = null, //future, now nothing
+    val extra3: String? = null, // future, now nothing
+    val pieza_nombre: String = "Producto", // From the scan qr
+    val peso_kg: Double = 0.0 // from the scan qr
 )
 
 /**

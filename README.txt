@@ -64,6 +64,17 @@ Login y register al último papa.
 10453,M-500,Extrusora 3,OP-2026-99,Mañana,2026-03-12,5,Juan Perez,Azul,2026-03-12T10:30:00,25.5
 42,CERNIDOR ROMANO,HT-250B,OP1354,DIURNO,2026-01-03,0001,Admin,ROJO,2026-01-03/14:30:00,5.2,CER-ROM-STD,Cernidor Romano,DatoExtra1,DatoExtra2,DatoExtra3
 
+______
+Pages that works:
+Ingreso nuevo proudcto
+Movimeintos
+Page that does not work:
+Merma molino, Salidas. Ingresos-Devolución de inventarios.
 
-Devolucion de no armado no funciona cuando la tarjeta aprece , da solamente Pructo con peso 0
 
+Flujo de la aplicación en la imagen de diagrama UML, para los mangas
+
+Tipo de operaciones no habledadas.
+DEVOLUCION_NO_ARMADO
+ARMAR_PAQUETES
+MERMA_MOLINO
