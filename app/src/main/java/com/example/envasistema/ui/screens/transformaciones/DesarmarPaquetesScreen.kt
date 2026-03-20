@@ -103,7 +103,7 @@ fun DesarmarPaquetesScreen(onBackClick: () -> Unit) {
                 if (pendingScans.none { it.codigo_qr == mangaId }) {
                     val metadata = JSONObject().apply {
                         put("tipo_transformacion", tipoTransformacion)
-                        put("n_op", qrJson.optString("n_op", "N/A"))
+                        put("nro_op", qrJson.optString("nro_op", "N/A"))
                     }.toString()
 
                     val payload = OperationPayload(

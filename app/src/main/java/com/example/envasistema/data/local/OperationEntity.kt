@@ -24,5 +24,9 @@ data class OperationEntity(
     val extra2: String? = null,
     val extra3: String? = null,
     val pieza_nombre: String = "Producto",
-    val peso_kg: Double = 0.0
+    val peso_kg: Double = 0.0,
+
+    // Authentication Metadata
+    val creator_email: String? = null,
+    val creator_name: String? = null
 )

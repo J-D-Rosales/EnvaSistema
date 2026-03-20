@@ -4,7 +4,6 @@ import com.example.envasistema.data.local.OperationEntity
 
 /**
  * Data Transfer Object (DTO) for network requests.
- * This class excludes fields that the backend does not require, such as 'peso_kg'.
  */
 data class NetworkOperationDto(
     val codigo_qr: String,
@@ -17,7 +16,9 @@ data class NetworkOperationDto(
     val extra1: String? = null,
     val extra2: String? = null,
     val extra3: String? = null,
-    val pieza_nombre: String
+    val pieza_nombre: String,
+    val creator_email: String? = null,
+    val creator_name: String? = null
 )
 
 /**
@@ -35,6 +36,8 @@ fun OperationEntity.toNetworkDto(): NetworkOperationDto {
         extra1 = this.extra1,
         extra2 = this.extra2,
         extra3 = this.extra3,
-        pieza_nombre = this.pieza_nombre
+        pieza_nombre = this.pieza_nombre,
+        creator_email = this.creator_email,
+        creator_name = this.creator_name
     )
 }

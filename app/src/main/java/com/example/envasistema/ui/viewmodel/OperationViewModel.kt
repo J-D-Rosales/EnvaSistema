@@ -6,17 +6,19 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.envasistema.data.repository.OperationRepository
 import com.example.envasistema.util.OperationPayload
+import com.example.envasistema.util.injectAuthData
 import kotlinx.coroutines.launch
 
 class OperationViewModel(private val repository: OperationRepository) : ViewModel() {
 
     /**
      * Saves the operation payload to the local Room database via the repository.
-     * This also triggers the background sync WorkManager task.
+     * Before saving, it injects the current authenticated user's email and name.
      */
     fun saveOperation(payload: OperationPayload) {
         viewModelScope.launch {
-            repository.saveOperation(payload)
+            val enrichedPayload = payload.injectAuthData()
+            repository.saveOperation(enrichedPayload)
         }
     }
 }

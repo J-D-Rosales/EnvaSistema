@@ -26,6 +26,7 @@ import com.example.envasistema.util.OperationPayload
 import com.example.envasistema.util.parseQrToPayload
 import org.json.JSONObject
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransferenciaInventarioScreen(onBackClick: () -> Unit) {
     val context = LocalContext.current
@@ -34,7 +35,11 @@ fun TransferenciaInventarioScreen(onBackClick: () -> Unit) {
     )
 
     val pendingScans = remember { mutableStateListOf<OperationPayload>() }
-    val currentLocation by remember { mutableStateOf("ENVA") }
+    
+    // Physical locations list
+    val locations = listOf("CUAVES", "MUEBLE", "JOSE GALVEZ", "ENVA")
+    var selectedLocation by remember { mutableStateOf("ENVA") }
+    var expanded by remember { mutableStateOf(false) }
     
     // UI State for Transfer Step
     var selectedStep by remember { mutableStateOf("INICIAR") } // "INICIAR" or "FINALIZAR"
@@ -65,25 +70,58 @@ fun TransferenciaInventarioScreen(onBackClick: () -> Unit) {
         showInternalCounter = false,
         externalScannedCodes = pendingScans.map { it.codigo_qr },
         extraContent = {
-            Card(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.LocationOn, null, tint = Color(0xFF0061A6), modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Mi Ubicación Actual", color = Color(0xFF455A64), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(Color(0xFF0061A6)), width = 2.dp)
-                    ) {
-                        Text(currentLocation, modifier = Modifier.padding(16.dp), color = Color(0xFF0D47A1), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+                // Location Selection Component
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.LocationOn, null, tint = Color(0xFF0061A6), modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Seleccionar Ubicación Física", color = Color(0xFF455A64), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        ExposedDropdownMenuBox(
+                            expanded = expanded,
+                            onExpandedChange = { expanded = !expanded },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedTextField(
+                                value = selectedLocation,
+                                onValueChange = {},
+                                readOnly = true,
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
+                                    focusedBorderColor = Color(0xFF0061A6),
+                                    unfocusedBorderColor = Color(0xFFBDBDBD)
+                                ),
+                                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                textStyle = LocalTextStyle.current.copy(
+                                    color = Color(0xFF0D47A1),
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                            ExposedDropdownMenu(
+                                expanded = expanded,
+                                onDismissRequest = { expanded = false }
+                            ) {
+                                locations.forEach { location ->
+                                    DropdownMenuItem(
+                                        text = { Text(location) },
+                                        onClick = {
+                                            selectedLocation = location
+                                            expanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -92,7 +130,7 @@ fun TransferenciaInventarioScreen(onBackClick: () -> Unit) {
             val payload = parseQrToPayload(
                 rawScan = rawScan,
                 tipoOperacion = "MOVIMIENTOS",
-                locacionOrigen = currentLocation,
+                locacionOrigen = selectedLocation, // Using selected location
                 locacionDestino = "TRANSITO",
                 operarioId = "user@gmail.com"
             )
@@ -110,10 +148,12 @@ fun TransferenciaInventarioScreen(onBackClick: () -> Unit) {
             if (pendingScans.isNotEmpty()) {
                 val batchCount = pendingScans.size
                 pendingScans.forEach { payload ->
-                    // Logic Modification: Format locations based on toggle state before saving
+                    // REVISED MAPPING LOGIC:
+                    // If INICIAR: Origin = selectedLoc, Destination = "TRANSITO"
+                    // If FINALIZAR: Origin = "TRANSITO", Destination = selectedLoc
                     val finalPayload = payload.copy(
-                        locacion_origen = if (selectedStep == "INICIAR") currentLocation else "TRANSITO",
-                        locacion_destino = if (selectedStep == "INICIAR") "TRANSITO" else currentLocation
+                        locacion_origen = if (selectedStep == "INICIAR") selectedLocation else "TRANSITO",
+                        locacion_destino = if (selectedStep == "INICIAR") "TRANSITO" else selectedLocation
                     )
                     viewModel.saveOperation(finalPayload)
                 }

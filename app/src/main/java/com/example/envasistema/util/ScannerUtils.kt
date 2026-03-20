@@ -5,31 +5,34 @@ import org.json.JSONObject
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import com.amplifyframework.core.Amplify
+import com.amplifyframework.auth.AuthUserAttributeKey
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
 /**
  * Data class representing the operation to be performed.
  */
 data class OperationPayload(
-    val codigo_qr: String, // DOne from the scan
-    val tipo_operacion: String, // Donde from the page you are currently in
-    val locacion_origen: String, // F Done from the login page (NOt implemented yet)
-    val locacion_destino: String, // Done from the page you are currently in
-    val operario_id: String, // F DOnde from login page (not implemented yet)
-    val metadatos: String, // No idea where
-    val timestamp: String, // From the scan in the qr
-    val isSynced: Boolean = false, // ALways 0 until you scanned which converts to 1
-    
-    // New Fields for Structured Data
-    val extra1: String? = null, //future, now nothing
-    val extra2: String? = null, //future, now nothing
-    val extra3: String? = null, // future, now nothing
-    val pieza_nombre: String = "Producto", // From the scan qr
-    val peso_kg: Double = 0.0 // from the scan qr
+    val codigo_qr: String,
+    val tipo_operacion: String,
+    val locacion_origen: String,
+    val locacion_destino: String,
+    val operario_id: String,
+    val metadatos: String,
+    val timestamp: String,
+    val isSynced: Boolean = false,
+    val extra1: String? = null,
+    val extra2: String? = null,
+    val extra3: String? = null,
+    val pieza_nombre: String = "Producto",
+    val peso_kg: Double = 0.0,
+    var creator_email: String? = null,
+    var creator_name: String? = null
 )
 
 /**
  * Mapper to convert OperationPayload to OperationEntity.
- * ENSURES ALL FIELDS ARE PRESERVED BEFORE INSERTING INTO ROOM.
  */
 fun OperationPayload.toEntity(): OperationEntity {
     return OperationEntity(
@@ -45,13 +48,29 @@ fun OperationPayload.toEntity(): OperationEntity {
         extra2 = this.extra2,
         extra3 = this.extra3,
         pieza_nombre = this.pieza_nombre,
-        peso_kg = this.peso_kg
+        peso_kg = this.peso_kg,
+        creator_email = this.creator_email,
+        creator_name = this.creator_name
     )
+}
+
+suspend fun OperationPayload.injectAuthData(): OperationPayload {
+    return suspendCancellableCoroutine { continuation ->
+        Amplify.Auth.fetchUserAttributes(
+            { attributes ->
+                this.creator_email = attributes.find { it.key == AuthUserAttributeKey.email() }?.value
+                this.creator_name = attributes.find { it.key == AuthUserAttributeKey.name() }?.value
+                continuation.resume(this)
+            },
+            { error ->
+                continuation.resume(this)
+            }
+        )
+    }
 }
 
 /**
  * Robustly parses the structured QR string based on the semicolon (;) format.
- * Expects at least 16 fields (indices 0 to 15).
  */
 fun parseQrToPayload(
     rawScan: String,
@@ -62,7 +81,6 @@ fun parseQrToPayload(
 ): OperationPayload? {
     val values = rawScan.split(";").map { it.trim() }
 
-    // Integrity Check: Index 12 is pieza_nombre, Index 15 is extra3
     if (values.size < 13) return null
 
     return try {
@@ -106,26 +124,25 @@ fun parseQrToPayload(
 }
 
 /**
- * Parses the raw QR CSV string into a JSONObject for backward compatibility in some screens.
+ * Parses the structured QR CSV string into a JSONObject.
  */
 fun parseCsvToJson(rawScan: String): JSONObject {
     val values = rawScan.split(";").map { it.trim() }
-    val json = JSONObject()
-    
-    // According to current QR structure:
-    // Index 0: mangaId
-    // Index 3: n_op
-    // Index 5: fecha_de_ot
-    // Index 7: operador
-    // Index 8: color
-    if (values.isNotEmpty()) {
-        json.put("manga-id", values[0])
-        json.put("n_op", values.getOrElse(3) { "" })
-        json.put("fecha_de_ot", values.getOrElse(5) { "" })
-        json.put("operador", values.getOrElse(7) { "" })
-        json.put("color", values.getOrElse(8) { "" })
+    return JSONObject().apply {
+        put("manga-id", values.getOrElse(0) { "" })
+        put("molde", values.getOrElse(1) { "" })
+        put("maquina", values.getOrElse(2) { "" })
+        put("nro_op", values.getOrElse(3) { "" })
+        put("turno", values.getOrElse(4) { "" })
+        put("fecha_ot_str", values.getOrElse(5) { "" })
+        put("nro_orden_trabajo", values.getOrElse(6) { "" })
+        put("operador", values.getOrElse(7) { "" })
+        put("color", values.getOrElse(8) { "" })
+        put("fecha_hora_str", values.getOrElse(9) { "" })
+        put("peso_final_kg", values.getOrElse(10) { "0.0" }.toDoubleOrNull() ?: 0.0)
+        put("pieza_sku", values.getOrElse(11) { "" })
+        put("pieza_nombre", values.getOrElse(12) { "Producto" })
     }
-    return json
 }
 
 fun extractMangaIdFromScan(rawScannedString: String): String {

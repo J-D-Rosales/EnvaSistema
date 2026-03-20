@@ -7,12 +7,13 @@ plugins {
 
 android {
     namespace = "com.example.envasistema"
-    compileSdk = 35
+    // Updated to 36 as required by androidx.browser:browser:1.9.0
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.envasistema"
         minSdk = 33
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -29,6 +30,8 @@ android {
         }
     }
     compileOptions {
+        // Enable desugaring for Amplify dependencies
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
@@ -41,6 +44,9 @@ android {
 }
 
 dependencies {
+    // Desugaring library
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -60,6 +66,10 @@ dependencies {
 
     // WorkManager
     implementation(libs.androidx.work.runtime.ktx)
+
+    // AWS Amplify Auth
+    implementation(libs.aws.auth.cognito)
+    implementation(libs.aws.amplify.core)
 
     // Networking
     implementation(libs.retrofit)
